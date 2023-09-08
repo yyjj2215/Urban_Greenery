@@ -1,0 +1,213 @@
+var dataset = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2')
+  .filterDate('2020-01-01', '2022-10-10')
+  .filterBounds(London)
+  .filter(ee.Filter.lt("CLOUD_COVER", 0.1));
+var oneimage_study_area_cloud = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+  .filterDate('2022-01-01', '2022-10-10')
+  .filter(ee.Filter.calendarRange(5, 9,'month'))
+  .filterBounds(london)  // Intersecting ROI
+  .filter(ee.Filter.lt("CLOUD_COVER", 0.1));
+  Map.addLayer(oneimage_study_area_cloud, {bands: ["SR_B4", "SR_B3", "SR_B2"]}, "oneimage_study_area_cloud");
+//Single images
+var oneimage = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2')
+  .filterDate('2022-04-03', '2022-04-04')
+  .filterBounds(london);  // Intersecting ROI
+// Intersecting ROI
+var median = oneimage_study_area_cloud.reduce(ee.Reducer.median());
+// print the image info
+print(median, "median");
+
+// better images
+// Applies scaling factors in a function
+function applyScaleFactors(image) {
+  var opticalBands = image.select('SR_B.').multiply(0.0000275).add(-0.2);
+  var thermalBands = image.select('ST_B.*').multiply(0.00341802).add(149.0);
+  return image.addBands(opticalBands, null, true)
+              .addBands(thermalBands, null, true);
+}
+
+// call our collection to the function and assign it to a new variable 
+var oneimage_study_area_cloud_scale = oneimage_study_area_cloud.map(applyScaleFactors);
+
+// apply the median reducer
+var oneimage_study_area_cloud_scale_median = oneimage_study_area_cloud_scale.reduce(ee.Reducer.median());
+
+// set up some of the visualisation paramters 
+var vis_params = {
+  bands: ['SR_B4_median', 'SR_B3_median', 'SR_B2_median'],
+  min: 0.0,
+  max: 0.3,
+};
+
+// add a layer to the map
+Map.addLayer(oneimage_study_area_cloud_scale_median, vis_params, 'True Color (432)');
+
+
+// mosaic images
+var mosaic = oneimage_study_area_cloud_scale.mosaic();
+
+var vis_params2 = {
+  bands: ['SR_B4', 'SR_B3', 'SR_B2'],
+  min: 0.0,
+  max: 0.3,
+};
+
+Map.addLayer(mosaic, vis_params2, 'spatial mosaic');
+
+var meanImage = oneimage_study_area_cloud_scale.mean();
+
+Map.addLayer(meanImage, vis_params2, 'mean');
+
+//Clip images
+var clip = meanImage.clip(london)
+  .select(['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7']);
+
+var vis_params3 = {
+  bands: ['SR_B4', 'SR_B3', 'SR_B2'],
+  min: 0,
+  max: 0.3,
+};
+
+// map the layer
+Map.addLayer(clip, vis_params3, 'clip');
+
+var glcm = clip.select(['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7'])
+  .multiply(1000)
+  .toUint16()
+  .glcmTexture({size: 1})
+  .select('SR_.._contrast|SR_.._diss')
+  .addBands(clip);
+  
+// add to the map, but change the range values  
+Map.addLayer(glcm, {min:14, max: 650}, 'glcm');
+
+
+//PCA
+// scale and band names
+
+var scale = 30;
+var bandNames = glcm.bandNames();
+print('GLCM band names:', glcm.bandNames());
+
+var region = london.geometry();
+Map.centerObject(region, 10);
+Map.addLayer(ee.Image().paint(region, 0, 2), {}, 'Region');
+
+print(region, "london_geometry");
+
+// mean center the data and SD strech the princapal components 
+// and an SD stretch of the principal components.
+print('bandNames:', bandNames);
+var meanDict = glcm.reduceRegion({
+    reducer: ee.Reducer.mean(),
+    geometry: region,
+    scale: scale,
+    maxPixels: 1e9
+});
+print('Mean Dictionary:', meanDict);
+var means = ee.Image.constant(meanDict.values(bandNames));
+print("Means: ", means);
+var centered = glcm.subtract(means);
+
+// This helper function returns a list of new band names.
+var getNewBandNames = function(prefix) {
+  var seq = ee.List.sequence(1, bandNames.length());
+  return seq.map(function(b) {
+    return ee.String(prefix).cat(ee.Number(b).int());
+  });
+};
+
+
+// This function accepts mean centered imagery, a scale and
+// a region in which to perform the analysis.  It returns the
+// Principal Components (PC) in the region as a new image.
+var getPrincipalComponents = function(centered, scale, region) {
+  // Collapse the bands of the image into a 1D array per pixel.
+  var arrays = centered.toArray();
+
+  // Compute the covariance of the bands within the region.
+  var covar = arrays.reduceRegion({
+    reducer: ee.Reducer.centeredCovariance(),
+    geometry: region,
+    scale: scale,
+    maxPixels: 1e9
+  });
+
+  // Get the 'array' covariance result and cast to an array.
+  // This represents the band-to-band covariance within the region.
+  var covarArray = ee.Array(covar.get('array'));
+
+  // Perform an eigen analysis and slice apart the values and vectors.
+  var eigens = covarArray.eigen();
+
+  // This is a P-length vector of Eigenvalues.
+  var eigenValues = eigens.slice(1, 0, 1);
+  // This is a PxP matrix with eigenvectors in rows.
+  
+  var eigenValuesList = eigenValues.toList().flatten();
+  var total = eigenValuesList.reduce(ee.Reducer.sum());
+  var percentageVariance = eigenValuesList.map(function(item) {
+  return (ee.Number(item).divide(total)).multiply(100).format('%.2f')});
+  
+  print("percentageVariance", percentageVariance);
+
+  var eigenVectors = eigens.slice(1, 1);
+
+  // Convert the array image to 2D arrays for matrix computations.
+  var arrayImage = arrays.toArray(1);
+
+  // Left multiply the image array by the matrix of eigenvectors.
+  var principalComponents = ee.Image(eigenVectors).matrixMultiply(arrayImage);
+
+  // Turn the square roots of the Eigenvalues into a P-band image.
+  var sdImage = ee.Image(eigenValues.sqrt())
+    .arrayProject([0]).arrayFlatten([getNewBandNames('sd')]);
+
+  // Turn the PCs into a P-band image, normalized by SD.
+  return principalComponents
+    // Throw out an an unneeded dimension, [[]] -> [].
+    .arrayProject([0])
+    // Make the one band array image a multi-band image, [] -> image.
+    .arrayFlatten([getNewBandNames('pc')])
+    // Normalize the PCs by their SDs.
+    .divide(sdImage);
+};
+
+// Get the PCs at the specified scale and in the specified region
+var pcImage = getPrincipalComponents(centered, scale, region);
+
+
+Map.addLayer(pcImage, {bands: ['pc2', 'pc1'], min: -2, max: 2}, 'PCA bands 1 and 2');
+
+// select the bands you want
+var PCA_out = pcImage.select(['pc1', 'pc2'])
+
+var projection = PCA_out.select('pc1').projection().getInfo();
+print(projection, "output_projection")
+
+var bounds = london.geometry();
+
+// Export the image, specifying the CRS, transform, and region.
+Export.image.toDrive({
+  image: PCA_out,
+  description: 'PCA_london',
+  scale:30,
+  crs: projection.crs,
+  maxPixels: 100E10,
+  region: bounds
+
+});
+
+//NDVI
+var NDVI_1 = clip.select('SR_B5').subtract(clip.select('SR_B4'))
+  .divide(clip.select('SR_B5').add(clip.select('SR_B4')));
+Map.addLayer(NDVI_1, { min: -1, max: 1, palette: ['blue', 'white', 'green']}, 'NDVI');
+
+Export.image.toDrive({
+  image: NDVI_1,
+  description: 'NDVI',
+  scale: 30,  // Adjust this to match the resolution you need
+  region: region,
+  fileFormat: 'GeoTIFF',
+  maxPixels: 1e13  // increase this if needed
+});
