@@ -1,0 +1,57 @@
+//--------------------------Landsat data---------------------------
+
+function applyScaleFactors(image) {
+  var opticalBands = image.select('SR_B.').multiply(0.0000275).add(-0.2);
+  var thermalBands = image.select('ST_B.*').multiply(0.00341802).add(149.0);
+  return image.addBands(opticalBands, null, true)
+              .addBands(thermalBands, null, true);
+}
+
+var landsat = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+  .filterDate('2022-01-01', '2022-10-10')
+  .filter(ee.Filter.calendarRange(5, 9,'month'))
+  .filterBounds(london)  // Intersecting ROI
+  .filter(ee.Filter.lt("CLOUD_COVER", 1))
+  .map(applyScaleFactors);
+
+print(landsat)
+
+var subtracted = landsat.select('ST_B10').map(function (image) {
+  var subtract = image.subtract(273.1); // subtract
+  var mask = subtract.gt(0); //set mask up
+  var mask_0 = subtract.updateMask(mask); //Apply this in a mask
+return mask_0
+})  
+
+var subtracted_mean = subtracted.reduce(ee.Reducer.mean())
+  .clip(london)
+// set up some of the visualisation paramters 
+// the palette is taken from the MODIS example (which we will see later on)
+var vis_params = {
+  min: 20,
+  max: 55,
+    palette: [
+    '040274', '040281', '0502a3', '0502b8', '0502ce', '0502e6',
+    '0602ff', '235cb1', '307ef3', '269db1', '30c8e2', '32d3ef',
+    '3be285', '3ff38f', '86e26f', '3ae237', 'b5e22e', 'd6e21f',
+    'fff705', 'ffd611', 'ffb613', 'ff8b13', 'ff6e08', 'ff500d',
+    'ff0000', 'de0101', 'c21301', 'a71001', '911003'
+  ]
+};
+
+Map.addLayer(subtracted_mean, vis_params, 'Landsat Temp');
+
+// Define your export options
+var exportOptions = {
+  image: subtracted_mean,              // The image to export
+  description: 'Landsat_Temp_export',  // The name of the export task
+  scale: 30,                           // The image resolution in meters
+  region: london,                      // The region to export
+  folder: 'your_folder',               // The name of the Google Drive folder to export to
+  fileNamePrefix: 'Landsat_Temp',      // The file name prefix
+  fileFormat: 'GeoTIFF',               // The file format
+  maxPixels: 1e13                      // The maximum number of pixels to export
+};
+
+// Export the image to Google Drive
+Export.image.toDrive(exportOptions);
