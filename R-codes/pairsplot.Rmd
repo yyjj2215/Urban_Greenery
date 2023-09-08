@@ -58,21 +58,7 @@ library(GGally)
 ggpairs(new_data, lower = list(continuous = "smooth"))
 ```
 
-```{r}
-pca_data <- new_data[, c("OGVI", "SNDVI")]
-```
 
-
-```{r}
-pca_data <- scale(pca_data)
-```
-
-```{r}
-pca_result <- prcomp(pca_data, center = TRUE, scale. = TRUE)
-```
-```{r}
-summary(pca_result)
-```
 ```{r}
 com_data$popdenskm <- com_data$popdens * 1000000
 ```
