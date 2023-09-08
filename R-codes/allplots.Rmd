@@ -1,0 +1,334 @@
+---
+title: "Point_plots"
+output: html_document
+date: "2023-08-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+library(sf)
+```
+```{r}
+# Read the shapefile
+lsoa_gvi <- st_read("plots/lsoa_gvi.shp")
+lsoa_gvi = st_transform(lsoa_gvi, "EPSG:27700")
+```
+
+```{r}
+# Read the shapefile
+msoa_gvi <- st_read("plots/msoa_gvi.shp")
+msoa_gvi = st_transform(msoa_gvi, "EPSG:27700")
+```
+
+```{r}
+# Read the shapefile
+ward_gvi <- st_read("plots/ward_gvi.shp")
+ward_gvi = st_transform(ward_gvi, "EPSG:27700")
+```
+```{r}
+# Read the shapefile
+boundary <- st_read("plots/boundary.shp")
+```
+
+
+```{r}
+# Read the shapefile
+sample_point <- st_read("plots/sample_points.shp")
+```
+
+```{r}
+# Read the shapefile
+all_point <- st_read("plots/all_points.shp")
+```
+```{r}
+library(tmap)
+```
+
+```{r}
+tm1<-tm_shape(lsoa_gvi) +
+  tm_fill(c("Original_G"), palette = "Greens", style = "cont", title = "OGVI") +
+  tm_layout(legend.position = c("right","top"), legend.outside = F,frame = F) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15) +
+  tm_credits("(a)", position=c(0,0.85), size=1.5)
+```
+
+```{r}
+tm2<-tm_shape(msoa_gvi) +
+  tm_fill(c("Original_G"), palette = "Greens", style = "cont", title = "OGVI") +
+  tm_layout(legend.position = c("right","top"),legend.outside = F, frame = F) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15) +
+  tm_credits("(b)", position=c(0,0.85), size=1.5)
+```
+
+```{r}
+tm3 <- tm_shape(ward_gvi) +
+  tm_fill(c("Original_G"), palette = "Greens", style = "cont", title = "OGVI") +
+  tm_layout(
+    legend.position = c("right", "top"),
+    legend.outside = F, 
+    frame = FALSE, 
+    outer.margins = c(0.05, 0.05, 0.2, 0.15)  # Adjust the values to create space
+  ) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15) +
+  tm_credits("(c)", position=c(0,0.85), size=1.5)
+```
+
+
+```{r}
+t=tmap_arrange(tm1, tm2, tm3,ncol=2)
+
+t
+```
+
+
+```{r}
+tmap_save(t, filename = "MAUP.png", width = 3000, height = 2400)
+```
+
+```{r}
+# Read the shapefile
+all_gvi <- st_read("plots/all_gvis.shp")
+```
+```{r}
+street_ndvi <- st_read("plots/street_ndvi.shp")
+```
+```{r}
+street_ndvi = st_transform(street_ndvi, "EPSG:27700")
+```
+
+```{r}
+street_temp <- st_read("plots/street_temp.shp")
+```
+```{r}
+street_temp = st_transform(street_temp, "EPSG:27700")
+```
+
+```{r}
+tm_ndvi<-tm_shape(street_ndvi) +
+  tm_fill(c("avg_ndvi"), palette = "Greens", style = "cont", title = "SNDVI") +
+  tm_layout(legend.position = c("right","top"),legend.outside = F, frame = F) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15) +
+  tm_credits("(a)", position=c(0,0.85), size=1.5)
+tm_ndvi
+```
+```{r}
+tm_temp<-tm_shape(street_temp) +
+  tm_fill(c("avg_temp"), palette = "Reds", style = "cont", breaks = c(28, 32, 36, 40,44,48),title = "SLST(°C)") +
+  tm_layout(legend.position = c("right","top"),legend.outside = F, frame = F) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15) +
+  tm_credits("(b)", position=c(0,0.85), size=1.5)
+tm_temp
+```
+
+```{r}
+new_GVI <- st_read("plots/regression.shp")
+```
+
+```{r}
+tm_ndvi2 <- tm_shape(new_GVI) +
+  tm_fill(c("avg_ndvi"), palette = "Greens", style = "cont", title = "SNDVI") +
+  tm_layout(
+    legend.position = c("right", "top"),
+    legend.outside = F, 
+    frame = FALSE, 
+    outer.margins = c(0.05, 0.05, 0.2, 0.15)  # Adjust the values to create space
+  ) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15) +
+  tm_credits("(c)", position=c(0,0.85), size=1.5)
+tm_ndvi2
+```
+
+```{r}
+tm_temp2 <- tm_shape(new_GVI) +
+  tm_fill(c("avg_temp"), palette = "Reds", style = "cont", title = "SLST(°C)") +
+  tm_layout(
+    legend.position = c("right", "top"),
+    legend.outside = F, 
+    frame = FALSE, 
+    outer.margins = c(0.05, 0.05, 0.2, 0.15)  # Adjust the values to create space
+  ) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15) +
+  tm_credits("(d)", position=c(0,0.85), size=1.5)
+tm_temp2
+```
+
+```{r}
+ts=tmap_arrange(tm_ndvi, tm_temp, tm_ndvi2,tm_temp2,ncol=2)
+
+ts
+```
+```{r}
+tmap_save(ts, filename = "street.png", width = 3000, height = 2400)
+```
+
+
+```{r}
+tm4<-tm_shape(new_GVI) +
+  tm_fill(c("Original_G"), palette = "Greens", style = "cont", title = "OGVI") +
+  tm_layout(legend.position = c("right","top"), legend.outside = F,frame = F) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15) +
+  tm_credits("(a)", position=c(0,0.85), size=1.5)
+tm4
+```
+
+
+```{r}
+tm5<-tm_shape(new_GVI) +
+  tm_fill(c("Constant_G"), palette = "Purples", style = "cont", title = "CGVI") +
+  tm_layout(legend.position = c("right","top"), legend.outside = F,frame = F) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15)+
+  tm_credits("(b)", position=c(0,0.85), size=1.5)
+tm5
+```
+
+
+```{r}
+tm6<-tm_shape(new_GVI) +
+  tm_fill(c("Scenic_GVI"), palette = "Blues", style = "cont", title = "SGVI") +
+  tm_layout(legend.position = c("right","top"), legend.outside = F,frame = F) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15) +
+  tm_credits("(c)", position=c(0,0.85), size=1.5)
+```
+
+```{r}
+tm7<-tm_shape(new_GVI) +
+  tm_fill(c("DWGVI"), palette = "Oranges", style = "cont", title = "DGVI") +
+  tm_layout(legend.position = c("right","top"), legend.outside = F,frame = F) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15) +
+  tm_credits("(d)", position=c(0,0.85), size=1.5)
+```
+
+```{r}
+t2=tmap_arrange(tm4, tm5, tm6,tm7,ncol=2)
+
+t2
+```
+```{r}
+tmap_save(t2, filename = "GVIs.png", width = 3000, height = 2400)
+```
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+# function to get sorted LAD11NM based on median of a specific column
+get_sorted_lad11nm <- function(df, column_name) {
+  df %>%
+    group_by(LAD11NM) %>%
+    summarise(median_value = median(!!sym(column_name), na.rm=TRUE)) %>%
+    arrange(desc(median_value)) %>%
+    pull(LAD11NM)
+}
+```
+
+```{r}
+# apply the function for each variable
+new_GVI$LAD11NM_Original_G <- factor(new_GVI$LAD11NM, levels = get_sorted_lad11nm(new_GVI, "Original_G"))
+new_GVI$LAD11NM_CGVI <- factor(new_GVI$LAD11NM, levels = get_sorted_lad11nm(new_GVI, "Constant_G"))
+new_GVI$LAD11NM_SGVI <- factor(new_GVI$LAD11NM, levels = get_sorted_lad11nm(new_GVI, "Scenic_GVI"))
+new_GVI$LAD11NM_DWGVI <- factor(new_GVI$LAD11NM, levels = get_sorted_lad11nm(new_GVI, "DWGVI"))
+new_GVI$LAD11NM_NDVI <- factor(new_GVI$LAD11NM, levels = get_sorted_lad11nm(new_GVI, "avg_ndvi"))
+new_GVI$LAD11NM_TEMP <- factor(new_GVI$LAD11NM, levels = get_sorted_lad11nm(new_GVI, "avg_temp"))
+```
+
+```{r}
+# create plots
+p1 <- ggplot(new_GVI, aes(x=LAD11NM_Original_G, y=Original_G)) + 
+  geom_boxplot() + 
+  ggtitle("(a)") +
+  labs(x = NULL, y = "OGVI") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11))
+
+p2 <- ggplot(new_GVI, aes(x=LAD11NM_CGVI, y=Constant_G)) + 
+  geom_boxplot() + 
+  ggtitle("(b)") +
+  labs(x = NULL, y = "CGVI") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11))
+
+p3 <- ggplot(new_GVI, aes(x=LAD11NM_SGVI, y=Scenic_GVI)) + 
+  geom_boxplot() + 
+  ggtitle("(c)") +
+  labs(x = NULL, y = "SGVI") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11))
+
+p4 <- ggplot(new_GVI, aes(x=LAD11NM_DWGVI, y=DWGVI)) + 
+  geom_boxplot() + 
+  ggtitle("(d)") +
+  labs(x = NULL, y = "DWGVI") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11))
+```
+
+```{r}
+p1
+```
+
+```{r}
+p2
+```
+
+```{r}
+p_results <- grid.arrange(p1, p2, p3, p4, ncol=2)
+```
+
+```{r}
+# Save the combined plots to a PNG
+ggsave(filename = "ppp.png", plot = p_results, width = 10, height = 8)
+```
+
+
+```{r}
+p5 <- ggplot(new_GVI, aes(x=LAD11NM_NDVI, y=avg_ndvi)) + 
+  geom_boxplot() + 
+  ggtitle("(c)") +
+  labs(x = NULL, y = "ndvi") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11))
+
+p6 <- ggplot(new_GVI, aes(x=LAD11NM_TEMP, y=avg_temp)) + 
+  geom_boxplot() + 
+  ggtitle("(d)") +
+  labs(x = NULL, y = "temp") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11))
+```
+
+```{r}
+p5
+```
+
+```{r}
+p6
+```
+

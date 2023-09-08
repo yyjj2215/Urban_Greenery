@@ -1,0 +1,92 @@
+---
+title: "comapre"
+output: html_document
+date: "2023-08-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+com_data <- st_read("plots/regression.shp")
+```
+```{r}
+colnames(com_data)
+```
+
+```{r}
+com_df <- as.data.frame(com_data)
+```
+
+```{r}
+new_data <- com_df[, c("Original_G", "Constant_G","Scenic_GVI", "DWGVI","avg_ndvi")]
+```
+
+```{r}
+# rename
+names(new_data) <- c("OGVI", "CGVI", "SGVI", "DGVI", "SNDVI")
+```
+
+
+
+```{r}
+library(GGally)
+```
+
+```{r}
+ggpairs(new_data, lower = list(continuous = "smooth"))
+```
+
+```{r}
+pca_data <- new_data[, c("OGVI", "SNDVI")]
+```
+
+
+```{r}
+pca_data <- scale(pca_data)
+```
+
+```{r}
+pca_result <- prcomp(pca_data, center = TRUE, scale. = TRUE)
+```
+```{r}
+summary(pca_result)
+```
+```{r}
+com_data$popdenskm <- com_data$popdens * 1000000
+```
+
+
+```{r}
+tm1<-tm_shape(com_data) +
+  tm_fill(c("popdenskm"), palette = "YlGnBu", style = "kmeans", title = "People/Km²") +
+  tm_layout(legend.position = c("right","top"), legend.outside = F,frame = F) +
+  tm_compass(type = "arrow", position = c(0.02, 0), size = 2) + 
+  tm_scale_bar(position = c(0.7, 0), width = 0.15)
+```
+
+```{r}
+tm1
+```
+
