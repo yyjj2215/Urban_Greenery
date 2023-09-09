@@ -1,0 +1,89 @@
+---
+title: "Regression"
+output: html_document
+date: "2023-08-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+library(sf)
+library(tmap)
+```
+
+
+```{r}
+# Read the shapefile
+all_gvi <- st_read("plots/all_gvis.shp")
+```
+```{r}
+all_gvi <- st_transform(all_gvi, 27700)
+```
+
+
+```{r}
+# Calculate the area
+all_gvi$area <- st_area(all_gvi)
+```
+
+```{r}
+popu <- read.csv("population.csv")
+```
+```{r}
+colnames(popu)
+```
+```{r}
+colnames(all_gvi)
+```
+
+```{r}
+regression <- merge(all_gvi, popu[, c("LSOA.Code", "All.Ages")], 
+                  by.x = "LSOA11CD", by.y = "LSOA.Code", all.x = TRUE)
+```
+
+
+```{r}
+regression$All.Ages <- as.numeric(gsub(",", "", regression$All.Ages))
+```
+
+
+```{r}
+regression$popdens <- regression$All.Ages / regression$area
+```
+
+```{r}
+write.csv(regression, "regression.csv", row.names = FALSE)
+```
+
+```{r}
+st_write(regression, "plots/regression.shp")
+```
+```{r}
+head(regression)
+```
+
+
+
+
+
